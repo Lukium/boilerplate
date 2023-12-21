@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: $service_name
+  namespace: default
+spec:
+  externalName: $service_ip
+  type: ExternalName
+  ports:
+  - name: websecure
+    port: $service_port
+    targetPort: $service_port
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: $service_name
+  namespace: default
+  annotations: 
+    kubernetes.io/ingress.class: traefik-external
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`www.$service_name.$domain`)
+      kind: Rule
+      services:
+        - name: $service_name
+          port: $service_port
+          scheme: https
+          passHostHeader: true
+    - match: Host(`$service_name.$domain`)
+      kind: Rule
+      services:
+        - name: $service_name
+          port: $service_port
+          scheme: https
+          passHostHeader: true
+      middlewares:
+        - name: default-headers
+  tls:
+    secretName: $tls_secret
