@@ -5,7 +5,7 @@ metadata:
   namespace: cert-manager
 type: Opaque
 stringData:
-  cloudflare-token: $traefik_cf_token
+  cloudflare-token: $cf_token
 ---
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -14,16 +14,16 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: $traefik_letsencrypt_email
+    email: $letsencrypt_email
     privateKeySecretRef:
       name: letsencrypt-production
     solvers:
       - dns01:
           cloudflare:
-            email: $traefik_cloudflare_email
+            email: $cloudflare_email
             apiTokenSecretRef:
               name: cloudflare-token-secret
               key: cloudflare-token
         selector:
           dnsZones:
-            - $traefik_domain
+            - $cloudflare_domain
