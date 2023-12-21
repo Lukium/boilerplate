@@ -10,7 +10,7 @@ echo -e " \033[31;5m  ███████╗╚██████╔╝██�
 echo -e " \033[31;5m  ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝ ╚═════╝ ╚═╝     ╚═╝  \033[0m"
 echo
 
-echo -e " \033[34;5m   K3S Let's Encrypt Certificate Deployment Script  \033[0m"
+echo -e " \033[34;5m Traefik External Service Ingress Deployment Script \033[0m"
 echo
 
 #########################################################################################################
@@ -24,11 +24,23 @@ echo
 keep_manifestes="true"                  
 # Set this to true to keep a copy of all manifest files in the manifests folder
 
+service_name="rancher"
+# Name of the service to be used in the Ingress.
+# Will be reacheable at service_name.domain.tld and www.service_name.domain.tld
+
 domain="domain.tld"
-# Domain for Let's Encrypt
+# Domain for to be used in Ingress
+
+service_ip=192.168.200.101
+# IP of the service to be used in the Ingress
+
+service_port=443
+# Port of the service to be used in the Ingress
 
 tls_secret="domain-tls"
-# Name of the TLS secret
+# Name of the TLS secret to be used in the Ingress
+# You can check your available options with:
+# kubectl get secrets -n traefik -o wide | grep tls
 
 #########################################################################################################
 ###      !!!!!                    DO NOT TOUCH PAST HERE OR THINGS BLOW UP                 !!!!!      ###
@@ -83,71 +95,72 @@ if [ ! -z "$k3sconfig" ] && [ $k3sconfig_permission != "644" ] ; then
     sudo chmod 644 $k3sconfig
 fi
 
-#################################################
-#      STARTING CERTIFICATE INSTALLATION        #
-#################################################
+##############################################
+#       STARTING INGRESS INSTALLATION        #
+##############################################
 
-# Check that ClusterIssuer letsencrypt-production exists, otherwise error out
-if [ ! "$(kubectl get clusterissuer letsencrypt-production)" ] ; then
-    echo -e "\e[31mClusterIssuer letsencrypt-production not found\e[0m"
+# Check that the tls_secret is exists with kubectl
+if ! kubectl get secrets -n traefik | grep $tls_secret > /dev/null ; then
+    echo -e "\e[31mThe TLS secret $tls_secret does not exist in the traefik namespace\e[0m"
     echo -e "\e[31mExiting...\e[0m"
     exit 1
+else
+    echo -e "\e[32mTLS secret $tls_secret found in the traefik namespace\e[0m"
 fi
 
-# Download the certificate manifest file
-echo -e "\e[32mDownloading certificate manifest file\e[0m"
-curl -sO https://raw.githubusercontent.com/Lukium/boilerplate/main/kubernetes/manifests/traefik/letsencrypt-certificate-manifest.yaml
-if [ -f "letsencrypt-certificate-manifest.yaml" ] ; then
-    echo -e "\e[32mCertificate manifest file downloaded\e[0m"
-    # Replace domain and tls_secret variables in certificate manifest file
-    echo -e "\e[32mReplacing domain and tls_secret variables in certificate manifest file\e[0m"
+# Download the ingress manifest
+echo -e "\e[32mDownloading ingress manifest\e[0m"
+curl -sO https://raw.githubusercontent.com/Lukium/boilerplate/main/kubernetes/manifests/traefik/traefik-external-ingress.yaml
+if [ -f "traefik-external-ingress.yaml" ] ; then
+    echo -e "\e[32mIngress manifest downloaded\e[0m"
+    # Replace the variables in the manifest
+    echo -e "\e[32mReplacing variables in ingress manifest\e[0m"
     sed -i.bak \
+    -e "s|\\\$service_name|$service_name|g" \
     -e "s|\\\$domain|$domain|g" \
-    -e "s|\\\$tls_secret|$tls_secret|g" letsencrypt-certificate-manifest.yaml
-
-    if [ $? -eq 0 ]; then
-        echo -e "\e[32mCertificate manifest file modified\e[0m"
-        rm letsencrypt-certificate-manifest.yaml.bak
+    -e "s|\\\$service_ip|$service_ip|g" \
+    -e "s|\\\$service_port|$service_port|g" \
+    -e "s|\\\$tls_secret|$tls_secret|g" traefik-external-ingress.yaml
+    if [ $? -eq 0 ] ; then
+        echo -e "\e[32mIngress manifest variables replaced\e[0m"
+        rm traefik-external-ingress.yaml.bak
+        # Apply the ingress manifest
+        echo -e "\e[32mApplying ingress manifest\e[0m"
+        kubectl apply -f traefik-external-ingress.yaml
+        if [ $? -eq 0 ] ; then
+            echo -e "\e[32mIngress manifest applied\e[0m"
+            # Check if keep_manifestes is set to true and if so, move the manifest to the manifests folder
+            if [ "$keep_manifestes" = "true" ] ; then
+                if [ ! -d "$HOME/kubernetes/manifests/traefik" ] ; then
+                    echo -e "\e[32mCreating manifests folder\e[0m"
+                    mkdir -p $HOME/kubernetes/manifests/traefik
+                fi
+                echo -e "\e[32mMoving ingress manifest to manifests folder\e[0m"
+                mv traefik-external-ingress.yaml manifests/traefik-external-ingress.yaml
+            else                
+                rm traefik-external-ingress.yaml
+            fi
+        else
+            echo -e "\e[31mIngress manifest not applied\e[0m"
+            echo -e "\e[31mExiting...\e[0m"
+            exit 1
+        fi
     else
-        echo -e "\e[31mFailed to modify certificate manifest file\e[0m"
+        echo -e "\e[31mIngress manifest variables not replaced\e[0m"
         echo -e "\e[31mExiting...\e[0m"
         exit 1
     fi
 else
-    echo -e "\e[31mCertificate manifest file not downloaded\e[0m"
+    echo -e "\e[31mIngress manifest not downloaded\e[0m"
     echo -e "\e[31mExiting...\e[0m"
     exit 1
 fi
 
-# Apply the certificate manifest file
-echo -e "\e[32mApplying certificate manifest file\e[0m"
-kubectl apply -f letsencrypt-certificate-manifest.yaml
-if [ $? -eq 0 ]; then
-    echo -e "\e[32mCertificate manifest file applied\e[0m"
-else
-    echo -e "\e[31mFailed to apply certificate manifest file\e[0m"
-    echo -e "\e[31mExiting...\e[0m"
-    exit 1
-fi
+echoe -e "\e[32mExternal Ingress Deployment Complete\e[0m"
 
-# Check if keep_manifestes is set to true, if so move manifest files to manifests folder
-if [ $keep_manifestes = "true" ]; then
-    if [ ! -d "$HOME/kubernetes/manifests/traefik" ] ; then
-        echo -e "\e[32mCreating Manifest Directory for traefik: $HOME/kubernetes/manifests/traefik\e[0m"
-        mkdir -p $HOME/kubernetes/manifests/traefik
-    fi
-    echo -e "\e[32mStoring certificate manifest file in $HOME/kubernetes/manifests/traefik\e[0m"
-    mv $HOME/letsencrypt-certificate-manifest.yaml $HOME/kubernetes/manifests/traefik/letsencrypt-certificate-manifest.yaml
-else
-    rm $HOME/letsencrypt-certificate-manifest.yaml
-fi
-
-echo -e "\e[32mCertificate installed successfully\e[0m"
-
-#################################################
-#      FINISHED CERTIFICATE INSTALLATION        #
-#################################################
-
+##############################################
+#       FINISHED INGRESS INSTALLATION        #
+##############################################
 
 # Change permissions back to original
 if [ ! -z "$kubeconfig" ] && [ $kubeconfig_permission != "644" ] ; then
