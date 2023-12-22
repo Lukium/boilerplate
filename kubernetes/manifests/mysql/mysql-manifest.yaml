@@ -6,7 +6,7 @@ metadata:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: mysql-pvc
+  name: $mysql_namespace-pvc
   namespace: $mysql_namespace
 spec:
   accessModes:
@@ -19,7 +19,7 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: mysql
+  name: $mysql_namespace-statefulset
   namespace: $mysql_namespace
 spec:
   serviceName: "mysql"
@@ -81,7 +81,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: mysql
+  name: $mysql_namespace-service
   namespace: $mysql_namespace
 spec:
   ports:
