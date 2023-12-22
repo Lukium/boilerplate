@@ -9,7 +9,8 @@ echo -e " \033[31;5m  ██║     ██║   ██║██╔═██╗ �
 echo -e " \033[31;5m  ███████╗╚██████╔╝██║  ██╗██║╚██████╔╝██║ ╚═╝ ██║  \033[0m"
 echo -e " \033[31;5m  ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚═╝ ╚═════╝ ╚═╝     ╚═╝  \033[0m"
 echo
-
+echo -e " \033[34;5m            https://discord.gg/lukium               \033[0m"
+echo
 echo -e " \033[34;5m             MySQL Deployment Script                \033[0m"
 echo
 
