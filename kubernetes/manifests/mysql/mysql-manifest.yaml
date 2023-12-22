@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: $mysql_namespace
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: $mysql_namespace-pvc
+  namespace: $mysql_namespace
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: $mysql_storage_size
+  storageClassName: $mysql_storage_class
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: $mysql_namespace-statefulset
+  namespace: $mysql_namespace
+spec:
+  serviceName: "mysql"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      nodeSelector:
+        $node_selector_key: "$node_selector_value"
+      containers:
+      - name: mysql
+        image: mysql:$mysql_version
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-root-pass
+              key: password
+        - name: MYSQL_DATABASE
+          value: "$mysql_database_name"
+        resources:
+          requests:
+            memory: "$mysql_min_memory"
+            cpu: "$mysql_min_cpu"
+          limits:
+            memory: "$mysql_max_memory"
+            cpu: "$mysql_max_cpu"
+        ports:
+        - containerPort: $mysql_port
+          name: mysql
+        volumeMounts:
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+        readinessProbe:
+          exec:
+            command: ["sh", "-c", "mysql --user=root --password=$MYSQL_ROOT_PASSWORD --execute=\"SHOW DATABASES;\""]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        livenessProbe:
+          exec:
+            command: ["sh", "-c", "mysql --user=root --password=$MYSQL_ROOT_PASSWORD --execute=\"SHOW DATABASES;\""]
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-persistent-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: $mysql_storage_size
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: $mysql_namespace-service
+  namespace: $mysql_namespace
+spec:
+  ports:
+  - port: $mysql_port
+    targetPort: $mysql_port
+  selector:
+    app: mysql
+  type: LoadBalancer
+  loadBalancerIP: $mysql_ip
