@@ -32,6 +32,8 @@ spec:
       labels:
         app: mysql
     spec:
+      nodeSelector:
+        $node_selector_key: "$node_selector_value"
       containers:
       - name: mysql
         image: mysql:$mysql_version
