@@ -32,54 +32,29 @@ keep_manifestes="true"
 ###      !!!!!                    DO NOT TOUCH PAST HERE OR THINGS BLOW UP                 !!!!!      ###
 #########################################################################################################
 
-# Check if $HOME/.kube/config exists and if so save to kubeconfig variable
-if [ -f "$HOME/.kube/config" ] ; then
-    echo -e "\e[32mKube config found in $HOME/.kube\e[0m"
-    # Set file to variable
-    kubeconfig=$HOME/.kube/config
-fi
+kubeconfig="$HOME/.kube/config"
+k3sconfig="/etc/rancher/k3s/k3s.yaml"
 
-# Check if /etc/rancher/k3s/k3s.yaml exists and if so save to k3sconfig variable
-if [ -f "/etc/rancher/k3s/k3s.yaml" ] ; then
-    echo -e "\e[32mk3s.yaml found in /etc/rancher/k3s\e[0m"
-    # Set file to variable
-    k3sconfig=/etc/rancher/k3s/k3s.yaml
-    # if kubeconfig is set, delete the file, copy k3sconfig to kubeconfig
-    if [ ! -z "$kubeconfig" ] ; then
-        echo -e "\e[32mDeleting kubeconfig\e[0m"
-        sudo rm $kubeconfig
-        echo -e "\e[32mCopying k3sconfig to kubeconfig\e[0m"
+# Check if $HOME/.kube/config exists
+if [ -f $kubeconfig ] ; then
+    echo -e "\e[32m$kubeconfig found...\e[0m"
+    sudo chown $USER:$USER $kubeconfig
+    sudo chmod 600 $kubeconfig
+else
+    echo -e "\e[31mNo kube config found in $HOME/.kube, checking for k3s config...\e[0m"
+    if [ -f $k3sconfig ] ; then
+        echo -e "\eFound $k3sconfig, copying to $kubeconfig...\e[0m"
         sudo cp $k3sconfig $kubeconfig
+    else
+        echo -e "\e[31mNo kube config found in $HOME/.kube or /etc/rancher/k3s\e[0m"
+        echo -e "\e[31mExiting...\e[0m"
+        exit 1
     fi
 fi
 
-# Check if kubeconfig or k3sconfig is set, if not exit
-if [ -z "$kubeconfig" ] && [ -z "$k3sconfig" ] ; then
-    echo -e "\e[31mNo kube config found in $HOME/.kube or /etc/rancher/k3s\e[0m"
-    echo -e "\e[31mExiting...\e[0m"
-    exit 1
-fi
-
-# If either kubeconfig or k3sconfig are set, get their permissions and set to kubeconfig_permissions and k3sconfig_permissions respectively
-if [ ! -z "$kubeconfig" ] ; then
-    kubeconfig_permission=$(stat -c "%a" $kubeconfig)
-fi
-
-if [ ! -z "$k3sconfig" ] ; then
-    k3sconfig_permission=$(stat -c "%a" $k3sconfig)
-fi
-
-# If kubeconfig is set and permission is not 644, change it, will be changed back later
-if [ ! -z "$kubeconfig" ] && [ $kubeconfig_permission != "644" ] ; then
-    echo -e "\e[32mChanging kubeconfig permission to 644\e[0m"
-    sudo chmod 644 $kubeconfig
-fi
-
-# If k3sconfig is set and permission is not 644, change it, will be changed back later
-if [ ! -z "$k3sconfig" ] && [ $k3sconfig_permission != "644" ] ; then
-    echo -e "\e[32mChanging k3sconfig permission to 644\e[0m"
-    sudo chmod 644 $k3sconfig
-fi
+echo -e "\e[32mEnsuring correct permissions and ownership for kubeconfig...\e[0m"
+sudo chown $USER:$USER $kubeconfig
+sudo chmod 600 $kubeconfig
 
 ##################################################
 #       STARTING CERT-MANAGER INSTALLATION       #
@@ -128,14 +103,3 @@ echo -e "\e[32mCert-Manager installed successfully\e[0m"
 ##################################################
 #       FINISHED CERT-MANAGER INSTALLATION       #
 ##################################################
-
-# Change permissions back to original
-if [ ! -z "$kubeconfig" ] && [ $kubeconfig_permission != "644" ] ; then
-    echo -e "\e[32mChanging kubeconfig permission back to $kubeconfig_permission\e[0m"
-    sudo chmod $kubeconfig_permission $kubeconfig
-fi
-
-if [ ! -z "$k3sconfig" ] && [ $k3sconfig_permission != "644" ] ; then
-    echo -e "\e[32mChanging k3sconfig permission back to $k3sconfig_permission\e[0m"
-    sudo chmod $k3sconfig_permission $k3sconfig
-fi
