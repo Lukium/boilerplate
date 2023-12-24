@@ -15,7 +15,7 @@ deployment:
   initContainers: []
 
 nodeSelector: 
-  $worker_label: "true"
+  $selector_label_key: "$selector_label_value"
 
 ports:
   web:
