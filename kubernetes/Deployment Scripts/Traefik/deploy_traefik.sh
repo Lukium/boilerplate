@@ -30,14 +30,17 @@ traefik_username="admin"
 traefik_password="password"
 # Password for traefik dashboard
 
-replica_count=2
+replica_count=1
 # Number of replicas for traefik - Should match the number of worker nodes
 
-worker_label="node-role.kubernetes.io/worker"
-# Label for worker nodes
+selector_label_key="worker"
+# Label Key for nodes you want to use for traefik
+
+selector_label_value="true"
+# Label Value for nodes you want to use for traefik
 
 traefik_ip=192.168.200.150
-# IP for traefik dashboard
+# IP for traefik dashboard, must be within the range of the load balancer
 
 set_tls_ingress="true"
 # Set this to true to enable tls ingress
@@ -47,7 +50,6 @@ tls_secret="domain-tls"
 
 domain="domain.tld"
 # Domain for Ingress - Only needed if set_tls_ingress is set to true
-
 #########################################################################################################
 ###      !!!!!                    DO NOT TOUCH PAST HERE OR THINGS BLOW UP                 !!!!!      ###
 #########################################################################################################
@@ -145,7 +147,8 @@ curl -sO https://raw.githubusercontent.com/Lukium/boilerplate/main/kubernetes/he
 if [ -f traefik-values.yaml ]; then
     sed -i.bak \
     -e "s|\\\$replica_count|$replica_count|g" \
-    -e "s|\\\$worker_label|$worker_label|g" \
+    -e "s|\\\$selector_label_key|$selector_label_key|g" \
+    -e "s|\\\$selector_label_value|$selector_label_value|g" \
     -e "s|\\\$traefik_ip|$traefik_ip|g" traefik-values.yaml
 
     if [ $? -eq 0 ]; then
